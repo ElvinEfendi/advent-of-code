@@ -83,15 +83,52 @@ impl Game {
     }
 }
 
+fn find_fewest_number_of_each_cube_possible(g: &Game) -> HashMap<&Cube, u32> {
+    let mut cubes_with_max_count = HashMap::new();
+
+    for r in &g.rounds {
+        for (cube, count) in &r.cubes {
+            let max_count = cubes_with_max_count.entry(cube).or_insert(*count);
+            if count > max_count {
+                *max_count = *count;
+            }
+        }
+    }
+
+    cubes_with_max_count
+}
+
+fn power_of_cubes(cubes: &HashMap<&Cube, u32>) -> u32 {
+    let mut power = 1;
+
+    for (_cube, count) in cubes {
+        power *= count
+    }
+
+    power
+}
+
 fn main() {
-    let sum_of_valid_game_ids = include_str!("../input.txt")
+    let games = include_str!("../input.txt")
         .lines()
         .map(|l| Game::from(l))
+        .collect::<Vec<Game>>();
+
+    let sum_of_valid_game_ids = games
+        .iter()
         .filter(|g| g.is_valid())
         .map(|g| g.id)
         .sum::<u32>();
-
     println!("Sum of valid game IDs: {}", sum_of_valid_game_ids);
+
+    let sum_of_powers = games
+        .iter()
+        .map(|g| {
+            let cubes_with_max_count = find_fewest_number_of_each_cube_possible(g);
+            power_of_cubes(&cubes_with_max_count)
+        })
+        .sum::<u32>();
+    println!("Sum of powers: {}", sum_of_powers);
 }
 
 #[cfg(test)]
@@ -147,5 +184,26 @@ mod tests {
         let g = Game::from("Game 5: 3 blue, 13 red; 1 red, 2 green, 6 blue; 2 green");
 
         assert!(!g.is_valid());
+    }
+
+    #[test]
+    fn test_find_fewest_number_of_each_cube_possible() {
+        let g = Game::from("Game 5: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green");
+
+        let cubes_with_max_count = find_fewest_number_of_each_cube_possible(&g);
+
+        assert_eq!(cubes_with_max_count.get(&Cube::Blue).unwrap(), &6);
+        assert_eq!(cubes_with_max_count.get(&Cube::Red).unwrap(), &4);
+        assert_eq!(cubes_with_max_count.get(&Cube::Green).unwrap(), &2);
+    }
+
+    #[test]
+    fn test_power_of_cubes() {
+        let mut cubes = HashMap::new();
+        cubes.insert(&Cube::Blue, 6);
+        cubes.insert(&Cube::Red, 4);
+        cubes.insert(&Cube::Green, 2);
+
+        assert_eq!(power_of_cubes(&cubes), 48);
     }
 }
