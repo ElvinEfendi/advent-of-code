@@ -1,20 +1,22 @@
 use std::collections::HashSet;
 
+#[derive(Debug, Clone)]
 pub struct Card {
-    name: String,
+    id: u32,
     winning_numbers: HashSet<u32>,
     numbers: Vec<u32>,
 }
 
 impl From<&str> for Card {
     fn from(s: &str) -> Self {
-        let (name, all_numbers_str) = s.split_once(": ").unwrap();
+        let (name_str, all_numbers_str) = s.split_once(": ").unwrap();
+        let id = name_str.split_whitespace().nth(1).unwrap().parse::<u32>().unwrap();
         let (winning_numbers_str, numbers_str) = all_numbers_str.split_once(" | ").unwrap();
         let winning_numbers = winning_numbers_str.split_whitespace().map(|s| s.parse::<u32>().unwrap()).collect();
         let numbers = numbers_str.split_whitespace().map(|s| s.parse::<u32>().unwrap()).collect();
 
         Card {
-            name: name.to_string(),
+            id,
             winning_numbers,
             numbers,
         }
@@ -22,16 +24,24 @@ impl From<&str> for Card {
 }
 
 impl Card {
-    pub fn point_value(&self) -> Option<u32> {
-        let number_of_matches = self.numbers
+    pub fn get_number_of_matches(&self) -> usize {
+        self.numbers
             .iter()
             .filter(|n| self.winning_numbers.contains(n))
-            .count();
+            .count()
+    }
+
+    pub fn point_value(&self) -> Option<u32> {
+        let number_of_matches = self.get_number_of_matches();
         if number_of_matches == 0 {
             return None;
         }
 
         Some(2u32.pow((number_of_matches - 1) as u32))
+    }
+
+    pub fn get_id(&self) -> u32 {
+        self.id
     }
 }
 
@@ -43,7 +53,7 @@ mod tests {
     fn test_card_from_str() {
         let card = Card::from("Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53");
 
-        assert_eq!(card.name, "Card 1");
+        assert_eq!(card.id, 1);
         assert_eq!(card.winning_numbers, vec![41, 48, 83, 86, 17].into_iter().collect());
         assert_eq!(card.numbers, vec![83, 86, 6, 31, 17, 9, 48, 53]);
     }
