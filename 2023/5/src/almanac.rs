@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use rayon::prelude::*;
 
 #[derive(Debug)]
 struct MapEntry {
@@ -80,25 +81,28 @@ impl Almanac {
     }
 
     pub fn find_lowest_location(&self) -> u32 {
-        let mut lowest_location = self.maps.get("humidity-to-location").unwrap()[0].destination_range_start;
+        self.seeds.par_iter()
+            .map(|seed| {
+                let mut lowest_location = u32::MAX;
 
-        for seed in &self.seeds {
-            for i in 0..seed.range_length {
-                let soil = self.find_in_map("seed-to-soil", seed.range_start + i);
-                let fertilizer = self.find_in_map("soil-to-fertilizer", soil);
-                let water = self.find_in_map("fertilizer-to-water", fertilizer);
-                let light = self.find_in_map("water-to-light", water);
-                let temperature = self.find_in_map("light-to-temperature", light);
-                let humidity = self.find_in_map("temperature-to-humidity", temperature);
-                let location = self.find_in_map("humidity-to-location", humidity);
+                for i in 0..seed.range_length {
+                    let soil = self.find_in_map("seed-to-soil", seed.range_start + i);
+                    let fertilizer = self.find_in_map("soil-to-fertilizer", soil);
+                    let water = self.find_in_map("fertilizer-to-water", fertilizer);
+                    let light = self.find_in_map("water-to-light", water);
+                    let temperature = self.find_in_map("light-to-temperature", light);
+                    let humidity = self.find_in_map("temperature-to-humidity", temperature);
+                    let location = self.find_in_map("humidity-to-location", humidity);
 
-                if location < lowest_location {
-                    lowest_location = location;
+                    if location < lowest_location {
+                        lowest_location = location;
+                    }
                 }
-            }
-        }
 
-        lowest_location
+                lowest_location
+            })
+            .min()
+            .unwrap()
     }
 }
 
