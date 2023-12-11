@@ -7,25 +7,30 @@ struct MapEntry {
     range_length: u32,
 }
 
+struct SeedEntry {
+    range_start: u32,
+    range_length: u32,
+}
+
 pub struct Almanac {
-    seeds: Vec<u32>,
+    seeds: Vec<SeedEntry>,
     maps: HashMap<String, Vec<MapEntry>>,
 }
 
 impl From<&str> for Almanac {
     fn from(s: &str) -> Self {
+        let mut seeds = Vec::new();
         let mut maps = HashMap::new();
 
         let mut lines = s.lines();
 
-        let seeds_line = lines.next().unwrap();
-        let seeds = seeds_line
-            .split(": ")
-            .nth(1)
-            .unwrap()
-            .split_whitespace()
-            .map(|s| s.parse::<u32>().unwrap())
-            .collect();
+        let seeds_line = lines.next().unwrap().split_once(": ").unwrap().1;
+        for pair in seeds_line.split_whitespace().collect::<Vec<&str>>().chunks(2) {
+            seeds.push(SeedEntry {
+                range_start: pair[0].parse::<u32>().unwrap(),
+                range_length: pair[1].parse::<u32>().unwrap(),
+            });
+        }
 
         let mut map_name = "seed-to-soil";
         while let Some(line) = lines.next() {
@@ -78,16 +83,18 @@ impl Almanac {
         let mut lowest_location = self.maps.get("humidity-to-location").unwrap()[0].destination_range_start;
 
         for seed in &self.seeds {
-            let soil = self.find_in_map("seed-to-soil", *seed);
-            let fertilizer = self.find_in_map("soil-to-fertilizer", soil);
-            let water = self.find_in_map("fertilizer-to-water", fertilizer);
-            let light = self.find_in_map("water-to-light", water);
-            let temperature = self.find_in_map("light-to-temperature", light);
-            let humidity = self.find_in_map("temperature-to-humidity", temperature);
-            let location = self.find_in_map("humidity-to-location", humidity);
+            for i in 0..seed.range_length {
+                let soil = self.find_in_map("seed-to-soil", seed.range_start + i);
+                let fertilizer = self.find_in_map("soil-to-fertilizer", soil);
+                let water = self.find_in_map("fertilizer-to-water", fertilizer);
+                let light = self.find_in_map("water-to-light", water);
+                let temperature = self.find_in_map("light-to-temperature", light);
+                let humidity = self.find_in_map("temperature-to-humidity", temperature);
+                let location = self.find_in_map("humidity-to-location", humidity);
 
-            if location < lowest_location {
-                lowest_location = location;
+                if location < lowest_location {
+                    lowest_location = location;
+                }
             }
         }
 
@@ -115,7 +122,11 @@ soil-to-fertilizer map:
 39 0 15";
         let almanac = Almanac::from(input);
 
-        assert_eq!(almanac.seeds, vec![79, 14, 55, 13,]);
+        assert_eq!(almanac.seeds.len(), 2);
+        assert_eq!(almanac.seeds[0].range_start, 79);
+        assert_eq!(almanac.seeds[0].range_length, 14);
+        assert_eq!(almanac.seeds[1].range_start, 55);
+        assert_eq!(almanac.seeds[1].range_length, 13);
 
         assert_eq!(almanac.maps.len(), 2);
         assert_eq!(almanac.maps.get("seed-to-soil").unwrap().len(), 2);
@@ -164,6 +175,6 @@ humidity-to-location map:
 56 93 4";
         let almanac = Almanac::from(input);
 
-        assert_eq!(almanac.find_lowest_location(), 35);
+        assert_eq!(almanac.find_lowest_location(), 46);
     }
 }
