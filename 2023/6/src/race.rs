@@ -22,6 +22,8 @@ impl Race {
     After solving the equation, and obtaining n1 and n2, then we can say that
     there are floor(n2) - ceil(n1) + 1 possible button held times
     where it'd beat best distance (because the parabola is concave).
+
+    For visual see: parabola.png in the root of the project.
      */
     pub fn number_of_beating_held_times(&self) -> u32 {
         let discriminant = self.max_time.powf(2.0) - 4.0 * self.best_distance;
