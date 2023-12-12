@@ -9,7 +9,7 @@ impl Card {
     fn new(symbol: char) -> Card {
         let value = match symbol {
             'T' => 10,
-            'J' => 11,
+            'J' => 1,
             'Q' => 12,
             'K' => 13,
             'A' => 14,
@@ -59,6 +59,17 @@ impl Hand {
     }
 
     fn determine_category(cards: &[Card; 5]) -> Category {
+        let number_of_jokers = cards.iter().filter(|card| card.0 == 1).count() as u8;
+        if number_of_jokers == 5 {
+            return Category::FiveOfAKind;
+        }
+
+        let cards: Vec<Card> = cards
+            .iter()
+            .filter(|card| card.0 != 1)
+            .cloned()
+            .collect();
+
         let mut stats: Vec<u8> = cards
             .iter()
             .fold(HashMap::new(), |mut stats, card| {
@@ -68,15 +79,18 @@ impl Hand {
             })
             .values()
             .map(|&count| count)
+            .sorted()
             .collect();
 
+        let maximum_rank_index = stats.len() - 1;
+        stats[maximum_rank_index] += number_of_jokers;
+
         while stats.len() < 5 {
-            stats.push(0);
+            stats.insert(0, 0);
         }
 
         let stats: (u8, u8, u8, u8, u8) = stats
             .into_iter()
-            .sorted()
             .collect_tuple()
             .unwrap();
 
@@ -149,7 +163,7 @@ mod tests {
         assert_eq!(card, Card(10));
 
         let card = Card::new('J');
-        assert_eq!(card, Card(11));
+        assert_eq!(card, Card(1));
 
         let card = Card::new('A');
         assert_eq!(card, Card(14));
@@ -292,6 +306,31 @@ mod tests {
     }
 
     #[test]
+    fn test_hand_compare_with_jokers() {
+        let lower_hand = Hand::new(
+            [
+                Card::new('Q'),
+                Card::new('Q'),
+                Card::new('Q'),
+                Card::new('J'),
+                Card::new('A'),
+            ],
+            50,
+        );
+        let higher_hand = Hand::new(
+            [
+                Card::new('K'),
+                Card::new('T'),
+                Card::new('J'),
+                Card::new('J'),
+                Card::new('T'),
+            ],
+            50,
+        );
+        assert!(lower_hand < higher_hand);
+    }
+
+    #[test]
     fn test_camel_cards_from() {
         let input = "\
 32T3K 765
@@ -316,6 +355,6 @@ KTJJT 220
 QQQJA 483";
         let mut camel_cards = CamelCards::from(input);
 
-        assert_eq!(camel_cards.total_winnings(), 6440);
+        assert_eq!(camel_cards.total_winnings(), 5905);
     }
 }
