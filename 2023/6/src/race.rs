@@ -1,14 +1,14 @@
 #[derive(Debug)]
 pub struct Race {
-    max_time: u32,
-    best_distance: u32,
+    max_time: f64,
+    best_distance: f64,
 }
 
 impl Race {
-    pub fn new(max_time: u32, best_distance: u32) -> Self {
+    pub fn new(max_time: u64, best_distance: u64) -> Self {
         Self {
-            max_time,
-            best_distance,
+            max_time: max_time as f64,
+            best_distance: best_distance as f64,
         }
     }
 
@@ -24,14 +24,14 @@ impl Race {
     where it'd beat best distance (because the parabola is concave).
      */
     pub fn number_of_beating_held_times(&self) -> u32 {
-        let discriminant = (self.max_time as i32).pow(2) - 4 * self.best_distance as i32;
-        if discriminant < 0 {
+        let discriminant = self.max_time.powf(2.0) - 4.0 * self.best_distance;
+        if discriminant < 0.0 {
             panic!("No possible button held time");
         }
 
-        let sqrt_discriminant = (discriminant as f64).sqrt();
-        let n1 = (self.max_time as f64 - sqrt_discriminant) / 2.0;
-        let n2 = (self.max_time as f64 + sqrt_discriminant) / 2.0;
+        let sqrt_discriminant = discriminant.sqrt();
+        let n1 = (self.max_time - sqrt_discriminant) / 2.0;
+        let n2 = (self.max_time + sqrt_discriminant) / 2.0;
 
         ((n2 - 1.0).ceil() - (n1 + 1.0).floor() + 1.0) as u32
     }
@@ -43,32 +43,24 @@ mod tests {
 
     #[test]
     fn test_number_of_beating_held_times() {
-        let race = Race {
-            max_time: 7,
-            best_distance: 9,
-        };
+        let race = Race::new(7, 9);
         assert_eq!(4, race.number_of_beating_held_times());
 
-        let race = Race {
-            max_time: 15,
-            best_distance: 40,
-        };
+        let race = Race::new(15, 40);
         assert_eq!(8, race.number_of_beating_held_times());
 
-        let race = Race {
-            max_time: 30,
-            best_distance: 200,
-        };
-        assert_eq!(9, race.number_of_beating_held_times())
+        let race = Race::new(30, 200);
+        assert_eq!(9, race.number_of_beating_held_times());
+
+        let race = Race::new(71530, 940200);
+        assert_eq!(71503, race.number_of_beating_held_times());
+
     }
 
     #[test]
     #[should_panic]
     fn test_number_of_beating_held_times_panics() {
-        let race = Race {
-            max_time: 7,
-            best_distance: 900000,
-        };
+        let race = Race::new(7, 900000);
         let _ = race.number_of_beating_held_times();
     }
 }

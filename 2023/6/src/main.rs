@@ -14,8 +14,8 @@ fn main() {
         .split_whitespace()
         .zip(distances_str.split_whitespace())
         .map(|(time_str, distance_str)| {
-            let max_time = time_str.parse::<u32>().unwrap();
-            let best_distance = distance_str.parse::<u32>().unwrap();
+            let max_time = time_str.parse::<u64>().unwrap();
+            let best_distance = distance_str.parse::<u64>().unwrap();
 
             let race = race::Race::new(max_time, best_distance);
             race.number_of_beating_held_times()
