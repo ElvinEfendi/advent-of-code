@@ -28,6 +28,30 @@ impl History {
 
         next_value
     }
+
+    pub fn predict_previous_value(&self) -> isize {
+        let mut next_values = self.values.clone();
+        let mut previous_value = self.values[0];
+        let mut aggregation_coefficient = -1;
+
+        loop {
+            if next_values.iter().all(|v| v == &0) {
+                break;
+            }
+
+            next_values = next_values
+                .windows(2)
+                .map(|w| {
+                    w[1] - w[0]
+                })
+                .collect::<Vec<_>>();
+
+            previous_value = previous_value + aggregation_coefficient * next_values[0];
+            aggregation_coefficient *= -1;
+        }
+
+        previous_value
+    }
 }
 
 impl From<&str> for History {
@@ -62,5 +86,17 @@ mod tests {
 
         let history = History::from("10 13 16 21 30 45");
         assert_eq!(68, history.predict_next_value());
+    }
+
+    #[test]
+    fn test_history_predict_previous_value() {
+        let history = History::from("0 3 6 9 12 15");
+        assert_eq!(-3, history.predict_previous_value());
+
+        let history = History::from("1 3 6 10 15 21");
+        assert_eq!(0, history.predict_previous_value());
+
+        let history = History::from("10 13 16 21 30 45");
+        assert_eq!(5, history.predict_previous_value());
     }
 }
