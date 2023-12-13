@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use rayon::prelude::*;
+use crate::utils;
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug)]
 pub struct Element(pub String);
@@ -50,31 +52,47 @@ impl Network {
         }
     }
 
-    pub fn distance_from_as_to_zs(&self) -> usize {
+    // Given the inherent assumption in the problem statement
+    // where it says when one of the paths reaches to an element ending with Z but others,
+    // continue to loop until all reaches to a Z element we can deduce that the paths repeat
+    // and that there's cycle. So we can find the period of each cycle and then their LCM would
+    // be the number of steps to have all paths reach to Z.
+    fn find_z_period(&self, from: &Element) -> usize {
         let mut distance = 0;
-        let mut current = self.node_by_element
-            .keys()
-            .filter(|element| element.0.ends_with('A'))
-            .collect::<Vec<_>>();
-
+        let mut current = from.clone();
         loop {
-            let nodes = current
-                .iter()
-                .map(|element| self.node_by_element.get(element).unwrap())
-                .collect::<Vec<_>>();
+            let node = self.node_by_element.get(&current).unwrap();
+
             let next = match self.turns.get(distance % self.turns.len()) {
-                Some(Turn::Left) => nodes.iter().map(|node| &node.0).collect::<Vec<_>>(),
-                Some(Turn::Right) => nodes.iter().map(|node| &node.1).collect::<Vec<_>>(),
+                Some(Turn::Left) => &node.0,
+                Some(Turn::Right) => &node.1,
                 None => panic!("No turns"),
             };
             distance += 1;
 
-            if next.iter().all(|element| element.0.ends_with('Z')) {
+            if next.0.ends_with('Z') {
                 return distance;
             }
 
-            current = next;
+            current = next.clone();
         }
+    }
+
+    pub fn distance_from_as_to_zs(&self) -> usize {
+        let periods = self.node_by_element
+            .keys()
+            .filter(|element| element.0.ends_with('A'))
+            .collect::<Vec<_>>()
+            .par_iter()
+            .map(|element| self.find_z_period(element))
+            .collect::<Vec<_>>();
+
+        let mut lcm = periods[0];
+        for period in &periods[1..] {
+            lcm = utils::lcm(lcm, *period);
+        }
+
+        lcm
     }
 }
 
@@ -144,6 +162,25 @@ ZZZ = (ZZZ, ZZZ)";
 
         let distance = network.distance(Element("AAA".into()), Element("ZZZ".into()));
         assert_eq!(distance, Some(6));
+    }
+
+    #[test]
+    fn test_network_find_z_period() {
+        let input = "\
+LR
+
+11A = (11B, XXX)
+11B = (XXX, 11Z)
+11Z = (11B, XXX)
+22A = (22B, XXX)
+22B = (22C, 22C)
+22C = (22Z, 22Z)
+22Z = (22B, 22B)
+XXX = (XXX, XXX)";
+        let network = Network::from(input);
+
+        assert_eq!(network.find_z_period(&Element("11A".into())), 2);
+        assert_eq!(network.find_z_period(&Element("22A".into())), 3);
     }
 
     #[test]
