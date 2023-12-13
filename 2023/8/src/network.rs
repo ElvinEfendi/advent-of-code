@@ -49,6 +49,33 @@ impl Network {
             current = next.clone();
         }
     }
+
+    pub fn distance_from_as_to_zs(&self) -> usize {
+        let mut distance = 0;
+        let mut current = self.node_by_element
+            .keys()
+            .filter(|element| element.0.ends_with('A'))
+            .collect::<Vec<_>>();
+
+        loop {
+            let nodes = current
+                .iter()
+                .map(|element| self.node_by_element.get(element).unwrap())
+                .collect::<Vec<_>>();
+            let next = match self.turns.get(distance % self.turns.len()) {
+                Some(Turn::Left) => nodes.iter().map(|node| &node.0).collect::<Vec<_>>(),
+                Some(Turn::Right) => nodes.iter().map(|node| &node.1).collect::<Vec<_>>(),
+                None => panic!("No turns"),
+            };
+            distance += 1;
+
+            if next.iter().all(|element| element.0.ends_with('Z')) {
+                return distance;
+            }
+
+            current = next;
+        }
+    }
 }
 
 impl From<&str> for Network {
@@ -117,5 +144,23 @@ ZZZ = (ZZZ, ZZZ)";
 
         let distance = network.distance(Element("AAA".into()), Element("ZZZ".into()));
         assert_eq!(distance, Some(6));
+    }
+
+    #[test]
+    fn test_network_distance_from_as_to_zs() {
+        let input = "\
+LR
+
+11A = (11B, XXX)
+11B = (XXX, 11Z)
+11Z = (11B, XXX)
+22A = (22B, XXX)
+22B = (22C, 22C)
+22C = (22Z, 22Z)
+22Z = (22B, 22B)
+XXX = (XXX, XXX)";
+        let network = Network::from(input);
+
+        assert_eq!(network.distance_from_as_to_zs(), 6);
     }
 }
