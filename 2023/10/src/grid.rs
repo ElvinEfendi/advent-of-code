@@ -6,6 +6,7 @@ L => (i+1, j+1)   ( 1,  1)
 J => (i+1, j-1)   ( 1, -1)
 F => (i-1, j+1)   (-1, +1)
 */
+use std::collections::HashSet;
 
 #[derive(PartialEq, Debug)]
 enum Connection {
@@ -40,6 +41,7 @@ enum Cell {
 pub struct Grid {
     cells: Vec<Vec<Cell>>,
     animal_position: (usize, usize),
+    polygon: Vec<(usize, usize)>,
 }
 
 impl From<&str> for Grid {
@@ -69,7 +71,8 @@ impl From<&str> for Grid {
             cells.push(row);
         }
 
-        Self { cells, animal_position }
+        let polygon = Vec::new();
+        Self { cells, animal_position, polygon }
     }
 }
 
@@ -154,21 +157,24 @@ impl Grid {
             };
         }
 
-        println!("Position: {:?}, connections: {:?}, looked direction: {:?}", &position, &result, &directions);
-
         result
     }
 
-    pub fn distance_to_farthest_cell(&self) -> usize {
+    pub fn distance_to_farthest_cell(&mut self) -> usize {
         let mut distance = 1;
         let mut routes = self.cell_connections(self.animal_position);
         let mut previous_routes = [self.animal_position, self.animal_position];
+        let mut polygon_second_half = Vec::new();
 
-        println!("");
+        self.polygon.clear();
+        self.polygon.push(self.animal_position);
 
         loop {
+            self.polygon.push(routes[0]);
             if routes[0] == routes[1] {
                 break;
+            } else {
+                polygon_second_half.insert(0, routes[1]);
             }
 
             let new_route_0 = *self.cell_connections(routes[0]).iter().filter(|&c| c != &previous_routes[0]).next().unwrap();
@@ -180,11 +186,48 @@ impl Grid {
             routes[1] = new_route_1;
 
             distance += 1;
-
-            println!("----------------------------------------");
         }
 
+        self.polygon.extend(polygon_second_half);
+
         distance
+    }
+
+    fn is_point_in_polygon(&self, p: (usize, usize)) -> bool {
+        let mut intersections = 0;
+        let (xp, yp) = (p.0 as f64, p.1 as f64);
+
+        for i in 0..self.polygon.len() {
+            let (x1, y1) = (self.polygon[i].0 as f64, self.polygon[i].1 as f64);
+            let (x2, y2) = (self.polygon[(i + 1) % self.polygon.len()].0 as f64, self.polygon[(i + 1) % self.polygon.len()].1 as f64);
+
+            if (yp < y1) != (yp < y2) && xp < x1 + ((yp-y1) / (y2-y1)) * (x2-x1) {
+                intersections += 1;
+            }
+        }
+
+        intersections % 2 == 1
+    }
+
+    pub fn count_enclosed_points(&self) -> usize {
+        let mut count = 0;
+        let mut polygon_lookup = HashSet::new();
+
+        for p in self.polygon.iter() {
+            polygon_lookup.insert(p);
+        }
+
+        for i in 0..self.cells.len() {
+            for j in 0..self.cells[i].len() {
+                if self.is_point_in_polygon((i, j)) {
+                    if !polygon_lookup.contains(&(i, j)) {
+                        count += 1;
+                    }
+                }
+            }
+        }
+
+        count
     }
 }
 
@@ -233,7 +276,7 @@ LJ...";
 SJ.L7
 |F--J
 LJ...";
-        let grid = Grid::from(input);
+        let mut grid = Grid::from(input);
         assert_eq!(8, grid.distance_to_farthest_cell());
 
         let input = "\
@@ -242,7 +285,7 @@ LJ...";
 .|.|.
 .L-J.
 .....";
-        let grid = Grid::from(input);
+        let mut grid = Grid::from(input);
         assert_eq!(4, grid.distance_to_farthest_cell());
 
         let input = "\
@@ -251,7 +294,63 @@ LJ...";
 L|7||
 -L-J|
 L|-JF";
-        let grid = Grid::from(input);
+        let mut grid = Grid::from(input);
         assert_eq!(4, grid.distance_to_farthest_cell());
+        assert_eq!(
+            vec![(1, 1), (1, 2), (1, 3), (2, 3), (3, 3), (3, 2), (3, 1), (2, 1)],
+            grid.polygon,
+        );
+    }
+
+    #[test]
+    fn test_grid_is_point_in_polygon() {
+        let input = "\
+..F7.
+.FJ|.
+SJ.L7
+|F--J
+LJ...";
+        let mut grid = Grid::from(input);
+        assert_eq!(8, grid.distance_to_farthest_cell());
+        assert_eq!(
+            vec![
+                (2, 0), (2, 1), (1, 1), (1, 2), (0, 2), (0, 3),
+                (1, 3), (2, 3), (2, 4), (3, 4), (3, 3), (3, 2), (3, 1), (4, 1), (4, 0), (3, 0),
+            ],
+            grid.polygon,
+        );
+        assert_eq!(false, grid.is_point_in_polygon((2, 0)));
+        assert_eq!(false, grid.is_point_in_polygon((1, 0)));
+        assert_eq!(true, grid.is_point_in_polygon((2, 2)));
+
+        let input = "\
+-L|F7
+7S-7|
+L|7||
+-L-J|
+L|-JF";
+        let mut grid = Grid::from(input);
+        assert_eq!(4, grid.distance_to_farthest_cell());
+        assert_eq!(
+            vec![(1, 1), (1, 2), (1, 3), (2, 3), (3, 3), (3, 2), (3, 1), (2, 1)],
+            grid.polygon,
+        );
+        assert_eq!(true, grid.is_point_in_polygon((2, 2)));
+
+        let input = "\
+.F----7F7F7F7F-7....
+.|F--7||||||||FJ....
+.||.FJ||||||||L7....
+FJL7L7LJLJ||LJ.L-7..
+L--J.L7...LJS7F-7L7.
+....F-J..F7FJ|L7L7L7
+....L7.F7||L7|.L7L7|
+.....|FJLJ|FJ|F7|.LJ
+....FJL-7.||.||||...
+....L---J.LJ.LJLJ...";
+        let mut grid = Grid::from(input);
+        assert_eq!(70, grid.distance_to_farthest_cell());
+        assert_eq!(true, grid.is_point_in_polygon((4, 7)));
+        assert_eq!(false, grid.is_point_in_polygon((0, 0)));
     }
 }
